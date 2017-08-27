@@ -1,0 +1,40 @@
+********************************************************
+* Bi-variate VAR with inflation and t-bill rate
+********************************************************
+* Set calendar and read data
+cal(q) 1947:1
+all 0 2016:4
+data(format=fred) / COMPRNFB CE16OV
+
+* Data transformations and definitions
+log COMPRNFB / lnwage
+log CE16OV / lnemployment
+set trend = t
+declare vector[series] YVAR(2); set YVAR(1) = lnwage ; set YVAR(2) = lnemployment
+labels YVAR
+# 'Real Wages' 'Equilibrium Employment'
+
+
+* Set sample and estimate
+smpl 1950:1 2016:4
+table
+compute nlags=4, ksteps=40
+system(model=varmodel); * defines the VAR model
+vars YVAR; * endogenous variables in VAR
+det constant trend; * deterministic variables in VAR
+lags 1 to nlags; * lags of each variable in each equation
+end(system)
+estimate(residuals=resids) /
+impulse(model=varmodel,steps=ksteps,results=irfs); * Defaults to lower-triangular (Cholesky) orthogonalized shocks
+errors(model=varmodel,steps=ksteps)
+
+spgraph(vfields=2,hfields=2)
+do i=1,2
+  do j=1,2
+    display(store=header) 'Response of ' %l(YVAR(j)) ' to shock in ' %l(YVAR(i))
+    graph(nodates,frame=half,subheader=header,samesize) 1
+    # irfs(j,i) 1 ksteps
+  end do j
+end do i
+spgraph(done)
+
